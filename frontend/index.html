@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="My Wealth">
+  <title>Personal Finance App</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css?v=13">
+</head>
+<body>
+  <header class="topbar" id="topbar">
+    <div>
+      <div class="eyebrow">PERSONAL FINANCE</div>
+      <h1 id="appName">Personal Finance App</h1>
+    </div>
+    <div class="topbar-actions">
+      <span id="syncStatus" class="sync-status">Local</span>
+      <button class="icon-btn" id="eyeBtn" title="Hide values" aria-label="Hide values">◉</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="dashboard-grid" id="dashboard">
+    <section class="hero card">
+      <div class="eyebrow">NET WORTH</div>
+      <div class="hero-value" id="netWorth">₱0.00</div>
+      <div class="hero-sub">Savings + investments + cash</div>
+      <div class="mini-grid">
+        <div><span>Savings</span><strong id="totalSavings">₱0</strong></div>
+        <div><span>Investments</span><strong id="totalInvestments">₱0</strong></div>
+        <div><span>Expenses</span><strong id="totalExpenses">₱0</strong></div>
+      </div>
+    </section>
+    <section class="chart card">
+      <div class="section-title"><h2>Cash Flow Progress</h2><div class="chart-legend"><span class="saving-key">Savings</span><span class="expense-key">Expenses</span></div></div>
+      <div class="chart-controls"><button data-range="week" class="active">Week</button><button data-range="month">Month</button><button data-range="quarter">3 Months</button></div>
+      <canvas id="activityChart" aria-label="Savings and expenses chart"></canvas>
+    </section>
+    </div>
+
+    <section class="section" id="goals">
+      <div class="section-title"><h2>Wealth Goals</h2><span id="goalPercent">0%</span></div>
+      <div class="goal-row"><span id="goalTarget">₱100,000.00</span><div class="progress"><i id="goalBar"></i></div><span id="goalAmount">₱0</span></div>
+      <div class="goal-chips">
+        <button data-goal="100000">₱100K</button>
+        <button data-goal="250000">₱250K</button>
+        <button data-goal="500000">₱500K</button>
+        <button data-goal="1000000">₱1M</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>Monthly Budget</h2><div class="section-actions"><button class="info-btn" id="budgetInfo" title="Budget tips" aria-label="Budget tips">i</button><button class="add secondary-action" id="budgetSettings" title="Edit budget" aria-label="Edit budget">⚙ Edit</button></div></div>
+         <div class="budget-total">Based on <strong id="budgetIncomeDisplay">₱15,000.00</strong> monthly income</div>
+      <div class="budget-grid">
+        <div class="budget needs"><b id="budgetNeedsPercent">50%</b><span>Needs</span><strong id="budgetNeedsAmount">₱7,500</strong></div>
+        <div class="budget wants"><b id="budgetWantsPercent">30%</b><span>Wants</span><strong id="budgetWantsAmount">₱4,500</strong></div>
+        <div class="budget save"><b id="budgetSavingsPercent">15%</b><span>Savings</span><strong id="budgetSavingsAmount">₱2,250</strong></div>
+        <div class="budget invest"><b id="budgetInvestPercent">5%</b><span>Invest</span><strong id="budgetInvestAmount">₱750</strong></div>
+      </div>
+   
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>Savings</h2><div class="section-actions"><button class="add secondary-action" id="transferFunds">↔ Transfer</button><button class="add" id="addSaving">+ Add</button></div></div>
+      <div id="savingsList" class="list"></div>
+    </section>
+
+    <section class="section" id="expenses">
+      <div class="section-title"><h2>Expenses</h2><div class="section-actions"><button class="add secondary-action" id="expenseHistory">History (1 month)</button><button class="add" id="addExpense">+ Add</button></div></div>
+      <div id="expensesList" class="list"></div>
+    </section>
+
+    <section class="section" id="investments">
+      <div class="section-title"><h2>US Portfolio</h2><button class="add" id="addStock">+ Add</button></div>
+      <div class="note">Offline tracker. Enter the latest price manually when you are online.</div>
+      <div id="stocksList" class="list"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h2>Quick Add</h2></div>
+      <div class="quick-grid">
+        <button id="quickSavings">＋ Savings</button>
+        <button id="quickInvest">＋ Investment</button>
+        <button id="quickExpense">− Expense</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="nav">
+    <a class="active" href="#dashboard">⌂<small>Home</small></a>
+    <a href="#expenses">▣<small>Expenses</small></a>
+    <a href="#investments">↗<small>Invest</small></a>
+    <a href="#goals">◎<small>Goals</small></a>
+  </nav>
+
+  <dialog id="entryDialog">
+    <form method="dialog" id="entryForm">
+      <h2 id="dialogTitle">Add Entry</h2>
+      <label>Name<input id="entryName" required></label>
+      <label>Amount (₱)<input id="entryAmount" type="number" min="0" step="0.01" required></label>
+      <label id="expenseAccountField" hidden>Pay from<select id="expenseAccount"><option value="">No linked account</option></select></label>
+      <div class="dialog-actions"><button type="button" id="cancelEntry" class="secondary">Cancel</button><button id="saveEntry" value="default">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="stockDialog">
+    <form method="dialog" id="stockForm">
+      <h2>Add US Stock</h2>
+      <label>Ticker<input id="ticker" placeholder="e.g. VOO" required></label>
+      <label>Investment Amount (USD)<input id="investmentAmount" type="number" min="1" step="0.01" placeholder="e.g. 1.00" required></label>
+      <label>Average Cost / Share (USD)<input id="avgCost" type="number" min="0" step="0.01" required></label>
+      <label>Latest Price / Share (USD)<input id="latestPrice" type="number" min="0" step="0.01" required></label>
+      <label>Paid from<select id="investmentAccount"><option value="">No linked account</option></select></label>
+      <p id="investmentError" class="form-error" role="alert" aria-live="polite"></p>
+      <div class="dialog-actions"><button type="button" id="cancelStock" class="secondary">Cancel</button><button id="saveStock" value="default">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="transferDialog">
+    <form method="dialog" id="transferForm">
+      <h2>Transfer Funds</h2>
+      <label>From<select id="transferSource" required></select></label>
+      <label>To<select id="transferDestination" required></select></label>
+      <label>Amount (₱)<input id="transferAmount" type="number" min="0.01" step="0.01" required></label>
+      <label>Comment (optional)<input id="transferNote" maxlength="80" placeholder="e.g. Payroll transfer"></label>
+      <p id="transferError" class="form-error" role="alert" aria-live="polite"></p>
+      <div class="dialog-actions"><button type="button" id="cancelTransfer" class="secondary">Cancel</button><button id="saveTransfer" value="default">Transfer</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" id="settingsForm">
+      <h2>Settings</h2>
+      <label>App name<input id="profileName" maxlength="40" required placeholder="e.g. Alex's Wealth"></label>
+      <div class="settings-actions"><button type="button" id="exportBtn" class="secondary">⇩ Export backup</button><button type="button" id="importBtn" class="secondary">⇧ Import backup</button><input id="importFile" type="file" accept="application/json,.json" hidden></div>
+      <button type="button" id="resetBtn" class="reset-action">↻ Reset all data</button>
+      <div class="dialog-actions"><button type="button" id="cancelSettings" class="secondary">Cancel</button><button value="default">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="budgetDialog">
+    <form method="dialog" id="budgetForm">
+      <h2>Edit Monthly Budget</h2>
+      <label>Monthly income (₱)<input id="budgetMonthlyIncome" type="number" min="1" step="0.01" required></label>
+      <label>Needs (%)<input id="budgetNeeds" type="number" min="0" max="100" step="1" required></label>
+      <label>Wants (%)<input id="budgetWants" type="number" min="0" max="100" step="1" required></label>
+      <label>Savings (%)<input id="budgetSavings" type="number" min="0" max="100" step="1" required></label>
+      <label>Invest (%)<input id="budgetInvest" type="number" min="0" max="100" step="1" required></label>
+      <p id="budgetError" class="form-error" role="alert"></p>
+      <div class="dialog-actions"><button type="button" id="cancelBudget" class="secondary">Cancel</button><button value="default">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="budgetInfoDialog">
+    <form method="dialog">
+      <h2>Budget Tips</h2>
+      <p class="info-copy"><strong>Needs:</strong> essentials such as food, housing, utilities, transport, and required bills.</p>
+      <p class="info-copy"><strong>Wants:</strong> optional spending such as dining out, entertainment, shopping, and subscriptions.</p>
+      <p class="info-copy"><strong>Savings:</strong> money for emergencies, short-term goals, and future plans.</p>
+      <p class="info-copy"><strong>Invest:</strong> money placed into assets for long-term growth. Only invest what you can leave invested.</p>
+      <div class="dialog-actions"><button value="default">Close</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="expenseHistoryDialog">
+    <form method="dialog">
+      <h2>Expense History</h2>
+      <p class="history-subtitle">Showing the last 30 days, newest first.</p>
+      <div id="expenseHistoryList" class="list"></div>
+      <div class="dialog-actions"><button value="default">Close</button></div>
+    </form>
+  </dialog>
+
+  <script src="app.js?v=13"></script>
+</body>
+</html>
