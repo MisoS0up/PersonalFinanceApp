@@ -1,0 +1,3 @@
+data/sync-data.json
+__pycache__/
+*.py[cod]

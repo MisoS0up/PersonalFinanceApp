@@ -1,0 +1,9 @@
+{
+  "name":"My Wealth",
+  "short_name":"My Wealth",
+  "start_url":"./index.html",
+  "display":"standalone",
+  "background_color":"#000000",
+  "theme_color":"#000000",
+  "description":"Offline personal finance tracker with savings, expenses, transfers, and investments"
+}
