@@ -10,20 +10,28 @@ try {
     $projectRoot = Split-Path -Parent $PSScriptRoot
 
 function Find-Python {
-    $commands = @("python", "py")
-    foreach ($name in $commands) {
-        $command = Get-Command $name -ErrorAction SilentlyContinue
-        if ($command) {
-            return $command.Source
+    $candidates = @(
+        @{ Name = "py"; Path = (Get-Command py -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source) },
+        @{ Name = "python"; Path = (Get-Command python -All -ErrorAction SilentlyContinue | Where-Object { $_.CommandType -in @('Application', 'ExternalScript') -and $_.Source -and $_.Source -notlike '*WindowsApps*' } | Select-Object -First 1 -ExpandProperty Source) }
+    )
+
+    foreach ($candidate in $candidates) {
+        if ($candidate.Path) {
+            return [pscustomobject]@{
+                Name = $candidate.Name
+                Path = $candidate.Path
+            }
         }
     }
+
     return $null
 }
 
 $python = Find-Python
 if (-not $python) {
-    Write-Host "Python was not found." -ForegroundColor Red
+    Write-Host "Python was not found or the Windows Store alias is active." -ForegroundColor Red
     Write-Host "Install Python from https://www.python.org/downloads/windows/ and enable 'Add Python to PATH'."
+    Write-Host "If Windows shows the Microsoft Store alias, disable App execution aliases for Python in Settings > Apps > Advanced app settings."
     Read-Host "Press Enter to close"
     exit 1
 }
@@ -68,7 +76,12 @@ if ($OpenBrowser) {
     Start-Process "http://localhost:$Port"
 }
 
-    & $python "$projectRoot\backend\server.py" --port $Port
+    $pythonArgs = @()
+    if ($python.Name -eq "py") {
+        $pythonArgs += "-3"
+    }
+
+    & $python.Path @pythonArgs "$projectRoot\backend\server.py" --port $Port
     if ($LASTEXITCODE -ne 0) {
         throw "The server stopped with exit code $LASTEXITCODE."
     }

@@ -46,6 +46,8 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 
 Then start the script again.
 
+If Windows reports `Python was not found` and opens the Microsoft Store, the user is hitting the App execution alias instead of the actual Python install. Install Python from python.org, make sure **Add Python to PATH** is enabled, and disable the Python App execution alias in **Settings > Apps > Advanced app settings** if it is still enabled.
+
 To use a different port:
 
 ```powershell
