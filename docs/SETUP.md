@@ -28,7 +28,9 @@ Do not copy `data\sync-data.json` unless you are intentionally restoring the sha
 
 ## 3. Start the local server
 
-For plug-and-play startup, right-click `scripts\Start-MyWealth.ps1`, choose **Run with PowerShell**, or run this from PowerShell in the app folder:
+For plug-and-play startup, double-click `scripts\Start-MyWealth.cmd`. This starts PowerShell with a process-only execution-policy bypass, so it works on computers where the default policy blocks local scripts. The window stays open while the server is running and shows startup errors instead of closing immediately.
+
+You can also run this from PowerShell in the app folder:
 
 ```powershell
 .\scripts\Start-MyWealth.ps1 -OpenBrowser
@@ -36,7 +38,7 @@ For plug-and-play startup, right-click `scripts\Start-MyWealth.ps1`, choose **Ru
 
 The script checks for Python, detects the LAN address, checks that port `8000` is available, and starts the sync server. Keep its window open while using the app. Use `Ctrl+C` to stop it.
 
-If PowerShell blocks the script, run it once with:
+If you prefer to run the `.ps1` directly and PowerShell blocks it, run this once with:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned

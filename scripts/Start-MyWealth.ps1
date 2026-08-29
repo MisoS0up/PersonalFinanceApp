@@ -4,8 +4,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-Set-Location -LiteralPath $PSScriptRoot
-$projectRoot = Split-Path -Parent $PSScriptRoot
+
+try {
+    Set-Location -LiteralPath $PSScriptRoot
+    $projectRoot = Split-Path -Parent $PSScriptRoot
 
 function Find-Python {
     $commands = @("python", "py")
@@ -46,7 +48,7 @@ if (-not $address) {
     $address = $addresses | Select-Object -First 1 -ExpandProperty IPAddress
 }
 
-Write-Host "My Wealth is ready" -ForegroundColor Green
+Write-Host "Personal Finance App Server is ready" -ForegroundColor Green
 Write-Host "This computer: http://localhost:$Port"
 if ($address) {
     Write-Host "Same Wi-Fi:   http://$address`:$Port" -ForegroundColor Cyan
@@ -57,7 +59,8 @@ $tailscaleAddress = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyCo
     Where-Object { $_.IPAddress -like "100.*" -and $_.AddressState -eq "Preferred" } |
     Select-Object -First 1 -ExpandProperty IPAddress
 if ($tailscaleAddress) {
-    Write-Host "Tailscale:    http://$tailscaleAddress`:$Port" -ForegroundColor Green
+    Write-Host "Tailscale:    http://$tailscaleAddress`:$Port"  -ForegroundColor Green
+    Write-Host "Use the generated address in your phone browser (SERVER MUST BE RUNNING)" -ForegroundColor Green
 }
 Write-Host "Keep this window open while using LAN sync. Press Ctrl+C to stop."
 
@@ -65,4 +68,15 @@ if ($OpenBrowser) {
     Start-Process "http://localhost:$Port"
 }
 
-& $python "$projectRoot\backend\server.py" --port $Port
+    & $python "$projectRoot\backend\server.py" --port $Port
+    if ($LASTEXITCODE -ne 0) {
+        throw "The server stopped with exit code $LASTEXITCODE."
+    }
+}
+catch {
+    Write-Host "`nMy Wealth could not start:" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host "`nCheck the message above, then press Enter to close." -ForegroundColor Yellow
+    Read-Host
+    exit 1
+}
