@@ -257,6 +257,7 @@ document.querySelector("#transferForm").addEventListener("submit",e=>{
  data.activity.push({type:"transfer",name:detail,amount,date:today()});
  transferForm.reset();transferDialog.close();save();
 });
+document.querySelectorAll(".nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll(".nav a").forEach(x=>x.classList.remove("active"));a.classList.add("active")});
 document.querySelectorAll("[data-goal]").forEach(b=>b.onclick=()=>{data.goal=Number(b.dataset.goal);save()});
 document.querySelectorAll("[data-range]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-range]").forEach(x=>x.classList.remove("active"));b.classList.add("active");drawChart(b.dataset.range)});
 document.querySelector("#settingsBtn").onclick=()=>{profileName.value=data.profileName;settingsDialog.showModal();profileName.focus()};
