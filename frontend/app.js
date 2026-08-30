@@ -46,6 +46,99 @@ function normalizeData(){
 function totalSavings(){return data.savings.reduce((a,x)=>a+Number(x.amount||0),0)}
 function totalExpenses(){return data.expenses.reduce((a,x)=>a+Number(x.amount||0),0)}
 function totalInvestments(){return data.stocks.reduce((a,x)=>a+(Number(x.shares)||0)*(Number(x.latestPrice)||0)*58,0)}
+function getRecentThirtyDayExpenses(){
+ const cutoff=new Date();cutoff.setDate(cutoff.getDate()-29);const cutoffKey=dateKey(cutoff);
+ return data.expenses.filter(expense=>(expense.date||"")>=cutoffKey).reduce((sum,expense)=>sum+Number(expense.amount||0),0);
+}
+function getEmergencyFund(){
+ const emergency=data.savings.find(account=>/emergency|rainy|buffer|reserve/i.test(account.name));
+ return Number(emergency ? emergency.amount || 0 : 0);
+}
+function pickRandom(list){return list[Math.floor(Math.random()*list.length)]||list[0]}
+function evaluatePurchase(name, amount){
+ const purchase=Number(amount||0);
+ const itemName=(name||"This purchase").trim()||"This purchase";
+ const monthlyIncome=Number(data.budget.income||0);
+ const wantsBudget=monthlyIncome*(Number(data.budget.wants||0)/100);
+ const emergencyFund=getEmergencyFund();
+ const recentExpenses=getRecentThirtyDayExpenses();
+ const totalCash=totalSavings();
+ const spendingAccount=data.savings[0]||{name:"Spending",amount:0};
+ const spendingBalance=Number(spendingAccount.amount||0);
+ const notes=[];
+ if(!Number.isFinite(purchase)||purchase<=0){
+  return {status:"Need amount", tone:"neutral", summary:"Enter a valid item amount above zero.", notes:[]};
+ }
+ let score=86;
+ // --- Step 1: Check spending account ---
+ if(purchase>spendingBalance){
+  const gap=purchase-spendingBalance;
+  score-=30;
+  notes.push(`Your spending account (${escapeHtml(spendingAccount.name)}) only has ${peso(spendingBalance)}. You would need another ${peso(gap)} from somewhere else.`);
+  // Can other accounts cover the gap?
+  const otherCash=totalCash-spendingBalance;
+  if(otherCash>=gap){
+   score+=8;
+   notes.push(`You have ${peso(otherCash)} across other accounts, so a transfer could cover it — but that moves money away from savings.`);
+  } else {
+   score-=12;
+   notes.push(`Even combining all other accounts (${peso(otherCash)}), you would still be short.`);
+  }
+ } else {
+  const remaining=spendingBalance-purchase;
+  score+=5;
+  notes.push(`Your spending account (${escapeHtml(spendingAccount.name)}) has ${peso(spendingBalance)}. After this purchase you would have ${peso(remaining)} left.`);
+  if(remaining<500){score-=8;notes.push("That would leave your spending account almost empty for the rest of the period.");}
+ }
+ // --- Step 2: Check monthly budget ---
+ if(monthlyIncome>0&&purchase<=monthlyIncome*0.04){
+  const fourPct=monthlyIncome*0.04;
+  score+=10;
+  notes.push(`This purchase is ${peso(purchase)}, which is below your 4% guideline of ${peso(fourPct)} on a ${peso(monthlyIncome)} income.`);
+ }
+ if(monthlyIncome>0&&purchase>wantsBudget*0.5){score-=25;notes.push(`This is more than half of your wants budget (${peso(wantsBudget)}).`)}
+ if(monthlyIncome>0&&purchase>wantsBudget){score-=20;notes.push(`It exceeds your planned wants budget by ${peso(Math.max(0,purchase-wantsBudget))}.`)}
+ // --- Step 3: Check total savings & emergency ---
+ if(totalCash>0&&purchase>totalCash*0.2){score-=18;notes.push(`This is more than 20% of your total savings (${peso(totalCash)}).`)}
+ if(emergencyFund < Math.max(recentExpenses*0.75,5000)){score-=20;notes.push("Your emergency buffer looks thin compared with recent spending.");}
+ if(score<35){notes.unshift("This purchase would pull too much cash away from your savings cushion.");}
+ // --- Result ---
+ if(score>=75){
+  const summaries=[
+   `${itemName} fits comfortably within your spending account and still leaves room for savings.`,
+   `${itemName} looks reasonable — your spending account can handle it without touching other savings.`,
+   `This feels like a healthy buy. ${itemName} stays within your available spending cash.`
+  ];
+  return {status:"Good buy", tone:"good", summary:pickRandom(summaries), notes:notes.length?notes:["You still have room inside your current monthly plan."]};
+ }
+ if(score>=45){
+  const summaries=[
+   `${itemName} is possible, but your spending account is stretched — you may need to transfer money.`,
+   `${itemName} is manageable if you move some funds first and keep the rest of your month tight.`,
+   `This purchase could work, but ${itemName} would use most of your available spending cash.`
+  ];
+  return {status:"Caution", tone:"caution", summary:pickRandom(summaries), notes:notes.length?notes:["Consider waiting a week or trimming non-essential spending first."]};
+ }
+ const summaries=[
+  `${itemName} exceeds what your spending account can cover and would strain your overall savings.`,
+  `This is not the best time for ${itemName} — your spending cash is too low right now.`,
+  `${itemName} would overdraw your spending account and put pressure on your other savings.`
+ ];
+ return {status:"Avoid", tone:"avoid", summary:pickRandom(summaries), notes:notes.length?notes:["Wait until your spending account or income improve before making this purchase."]};
+}
+function renderAdvisorResult(result){
+ const panel=document.querySelector("#advisorResult");
+ if(!panel)return;
+ const noteList=result.notes.length?`<ul>${result.notes.map(note=>`<li>${escapeHtml(note)}</li>`).join("")}</ul>`:"";
+ panel.className=`advisor-result ${result.tone}`;
+ panel.innerHTML=`<div class="advisor-header"><span class="advisor-badge ${result.tone}">${result.status}</span></div><strong>${result.summary}</strong>${noteList}`;
+}
+function handleAdvisorCheck(){
+ const item=document.querySelector("#advisorItem").value;
+ const amount=document.querySelector("#advisorAmount").value;
+ const result=evaluatePurchase(item, amount);
+ renderAdvisorResult(result);
+}
 function render(){
  const s=totalSavings(),i=totalInvestments(),n=s+i;
  document.querySelector("#appName").textContent=data.profileName;
@@ -72,7 +165,7 @@ function render(){
  document.querySelector("#eyeBtn").textContent=valuesHidden?"○":"◉";
  document.querySelector("#eyeBtn").title=valuesHidden?"Show values":"Hide values";
  document.querySelector("#eyeBtn").setAttribute("aria-label",document.querySelector("#eyeBtn").title);
- document.querySelector("#savingsList").innerHTML=data.savings.map((x,idx)=>`<div class="item sortable-item" draggable="true" data-index="${idx}"><div><div class="name">${escapeHtml(x.name)}</div><small>Savings</small>${x.notes?.length?`<div class="bank-notes">${x.notes.slice(-3).reverse().map(note=>`<small>${escapeHtml(idx===0?note:hiddenNote(note))}</small>`).join("")}</div>`:""}</div><div class="right"><strong>${idx===0?peso(x.amount):money(peso,x.amount)}</strong><button class="add-saving" onclick="addToSaving(${idx})" title="Add to ${escapeHtml(x.name)}" aria-label="Add to ${escapeHtml(x.name)}">+</button><button class="delete" onclick="removeSaving(${idx})" title="Delete ${escapeHtml(x.name)}" aria-label="Delete ${escapeHtml(x.name)}">×</button><span class="drag-handle" title="Drag to reorder" aria-hidden="true">⋮⋮</span></div></div>`).join("");
+ document.querySelector("#savingsList").innerHTML=data.savings.map((x,idx)=>`<div class="item sortable-item${idx===0?" spending-account":""}" draggable="true" data-index="${idx}"><div><div class="name">${escapeHtml(x.name)}${idx===0?`<span class="spending-badge">Spending</span>`:""}</div><small>${idx===0?"Primary spending account":"Savings"}</small>${x.notes?.length?`<div class="bank-notes">${x.notes.slice(-3).reverse().map(note=>`<small>${escapeHtml(idx===0?note:hiddenNote(note))}</small>`).join("")}</div>`:""}</div><div class="right"><strong>${idx===0?peso(x.amount):money(peso,x.amount)}</strong><button class="add-saving" onclick="addToSaving(${idx})" title="Add to ${escapeHtml(x.name)}" aria-label="Add to ${escapeHtml(x.name)}">+</button><button class="delete" onclick="removeSaving(${idx})" title="Delete ${escapeHtml(x.name)}" aria-label="Delete ${escapeHtml(x.name)}">×</button><span class="drag-handle" title="Drag to reorder" aria-hidden="true">⋮⋮</span></div></div>`).join("");
  const recentExpenses=data.expenses.map((expense,index)=>({expense,index})).sort((a,b)=>(b.expense.date||"").localeCompare(a.expense.date||"")||b.index-a.index);
  document.querySelector("#expensesList").innerHTML=recentExpenses.length?recentExpenses.slice(0,5).map(({expense,index})=>expenseRow(expense,index)).join(""):`<div class="item"><div><div class="name">No expenses yet</div><small>Add your first expense to start tracking</small></div></div>`;
  renderExpenseHistory();
@@ -115,6 +208,9 @@ document.querySelector("#addStock").onclick=()=>{prepareStockDialog();stockDialo
 document.querySelector("#quickSavings").onclick=()=>{mode="saving";prepareEntryDialog();entryDialog.showModal()}
 document.querySelector("#quickInvest").onclick=()=>{prepareStockDialog();stockDialog.showModal()}
 document.querySelector("#quickExpense").onclick=()=>{mode="expense";prepareEntryDialog();entryDialog.showModal()}
+document.querySelector("#advisorCheckBtn").onclick=handleAdvisorCheck;
+document.querySelector("#advisorItem").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();handleAdvisorCheck();}});
+document.querySelector("#advisorAmount").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();handleAdvisorCheck();}});
 document.querySelector("#transferFunds").onclick=()=>{prepareTransferDialog();transferDialog.showModal()}
 document.querySelector("#cancelEntry").onclick=()=>{entryForm.reset();entryDialog.close()}
 document.querySelector("#cancelStock").onclick=()=>{stockForm.reset();investmentError.textContent="";stockDialog.close()}

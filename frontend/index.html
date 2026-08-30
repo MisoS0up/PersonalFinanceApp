@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+;<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -88,6 +88,22 @@
         <button id="quickSavings">＋ Savings</button>
         <button id="quickInvest">＋ Investment</button>
         <button id="quickExpense">− Expense</button>
+      </div>
+    </section>
+
+    <section class="section" id="advisor">
+      <div class="section-title"><h2>Purchase Advisor</h2></div>
+      <div class="advisor-card">
+        <div class="advisor-form-row">
+          <label>Item<input id="advisorItem" maxlength="60" placeholder="e.g. Shoes"></label>
+          <label>Amount (₱)<input id="advisorAmount" type="number" min="0" step="0.01" placeholder="e.g. 4500"></label>
+        </div>
+        <div class="advisor-actions">
+          <button class="add" id="advisorCheckBtn" type="button">Check purchase</button>
+        </div>
+        <div id="advisorResult" class="advisor-result neutral">
+          Enter an item and amount to see if it fits your financial plan.
+        </div>
       </div>
     </section>
   </main>
