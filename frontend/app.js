@@ -28,20 +28,35 @@ const hiddenNote=note=>localStorage.getItem(HIDDEN_KEY)==="1"?note.replace(/(?:â
 const DIRTY_KEY=KEY+"-sync-dirty";
 function save(){localStorage.setItem(KEY,JSON.stringify(data));localStorage.setItem(DIRTY_KEY,"1");render();syncToServer()}
 function setSyncStatus(status){const element=document.querySelector("#syncStatus");if(element)element.textContent=status}
+function applyRemote(remote){
+ if(!remote||!remote.data)return false;
+ data=remote.data;
+ normalizeData();
+ localStorage.setItem(KEY,JSON.stringify(data));
+ render();
+ return true;
+}
 async function syncToServer(){
  if(!navigator.onLine){setSyncStatus("Offline");return}
  setSyncStatus("Syncing...");
- try{const response=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data,updatedAt:new Date().toISOString()})});if(!response.ok)throw new Error("sync failed");localStorage.removeItem(DIRTY_KEY);setSyncStatus("Synced")}
+ try{
+  const response=await fetch("/api/data",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data,updatedAt:new Date().toISOString()})});
+  if(!response.ok)throw new Error("sync failed");
+  const remote=await response.json();
+  applyRemote(remote);
+  localStorage.removeItem(DIRTY_KEY);
+  setSyncStatus("Synced");
+ }
  catch(error){setSyncStatus("Offline");}
 }
 async function syncFromServer(){
  if(!navigator.onLine){setSyncStatus("Offline");return}
  if(localStorage.getItem(DIRTY_KEY)==="1"){syncToServer();return}
- try{const response=await fetch("/api/data");if(!response.ok)throw new Error("sync failed");const remote=await response.json();if(remote.data){data=remote.data;normalizeData();localStorage.setItem(KEY,JSON.stringify(data));render();}else if(data.savings.some(account=>Number(account.amount||0)!==0)||data.expenses.length||data.stocks.length)syncToServer();setSyncStatus("Synced")}
+ try{const response=await fetch("/api/data");if(!response.ok)throw new Error("sync failed");const remote=await response.json();if(remote.data)applyRemote(remote);else if(data.savings.some(account=>Number(account.amount||0)!==0)||data.expenses.length||data.stocks.length)syncToServer();setSyncStatus("Synced")}
  catch(error){setSyncStatus("Local");}
 }
 function normalizeData(){
- data.profileName=data.profileName||"My Wealth";data.budget=data.budget||{income:15000,needs:50,wants:30,savings:15,invest:5};data.expenses=data.expenses||[];data.activity=data.activity||[];data.savings=data.savings||[];data.savings.forEach(account=>{account.notes=account.notes||[]});data.stocks=(data.stocks||[]).map(stock=>({...stock,fundingSources:stock.fundingSources||((stock.fundingAccount&&stock.purchaseAmount)?[{account:stock.fundingAccount,amount:Number(stock.purchaseAmount)}]:[])}));
+ data.profileName=data.profileName||"My Wealth";data.budget=data.budget||{income:15000,needs:50,wants:30,savings:15,invest:5};data.expenses=data.expenses||[];data.deletedExpenseIds=data.deletedExpenseIds||[];data.activity=data.activity||[];data.savings=data.savings||[];data.savings.forEach(account=>{account.notes=account.notes||[]});data.stocks=(data.stocks||[]).map(stock=>({...stock,fundingSources:stock.fundingSources||((stock.fundingAccount&&stock.purchaseAmount)?[{account:stock.fundingAccount,amount:Number(stock.purchaseAmount)}]:[])}));
 }
 function totalSavings(){return data.savings.reduce((a,x)=>a+Number(x.amount||0),0)}
 function totalExpenses(){return data.expenses.reduce((a,x)=>a+Number(x.amount||0),0)}
@@ -195,7 +210,24 @@ function setupSortable(selector,key){
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 window.removeSaving=i=>{data.savings.splice(i,1);save()}
-window.removeExpense=i=>{const expense=data.expenses[i];if(expense?.account){const account=data.savings.find(x=>x.name===expense.account);if(account){account.amount=Number(account.amount||0)+Number(expense.amount||0);if(expense.accountNote)account.notes=account.notes.filter(note=>note!==expense.accountNote)}}data.expenses.splice(i,1);save()}
+window.removeExpense=i=>{
+ const expense=data.expenses[i];
+ if(expense?.account){
+  const account=data.savings.find(x=>x.name===expense.account);
+  if(account){
+   account.amount=Number(account.amount||0)+Number(expense.amount||0);
+   if(expense.accountNote)account.notes=account.notes.filter(note=>note!==expense.accountNote);
+  }
+ }
+ if(expense?.id){
+  data.deletedExpenseIds=data.deletedExpenseIds||[];
+  if(!data.deletedExpenseIds.includes(expense.id))data.deletedExpenseIds.push(expense.id);
+  data.deletedExpenseIds=data.deletedExpenseIds.slice(-100);
+  data.activity=(data.activity||[]).filter(act=>act.expenseId!==expense.id);
+ }
+ data.expenses.splice(i,1);
+ save();
+}
 window.removeStock=i=>{const stock=data.stocks[i];(stock?.fundingSources||[]).forEach(source=>{const account=data.savings.find(x=>x.name===source.account);if(account)account.amount=Number(account.amount||0)+Number(source.amount||0)});data.stocks.splice(i,1);save()}
 window.addToSaving=i=>{mode="saving";entryName.value=data.savings[i].name;entryAmount.value="";prepareEntryDialog();entryDialog.showModal();entryAmount.focus()}
 window.addToStock=i=>{const stock=data.stocks[i],lastFunding=stock.fundingSources?.at(-1)?.account||stock.fundingAccount||"";prepareStockDialog();ticker.value=stock.ticker;investmentAmount.value="";avgCost.value=stock.latestPrice;latestPrice.value=stock.latestPrice;investmentAccount.value=lastFunding;stockDialog.showModal();investmentAmount.focus()}
@@ -227,7 +259,7 @@ document.querySelector("#entryForm").addEventListener("submit",e=>{
   if(linkedAccount)linkedAccount.amount=Number(linkedAccount.amount||0)-amount;
   const accountNote=linkedAccount?`${today()} Â· Spent ${peso(amount)} on ${name}`:"";
   if(linkedAccount){linkedAccount.notes.push(accountNote);linkedAccount.notes=linkedAccount.notes.slice(-3)}
-  data.expenses.push({name,amount,account,accountNote,date:today()});
+  data.expenses.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name,amount,account,accountNote,date:today()});
   data.activity.push({type:"expense",name,amount,date:today()});
  }
  entryForm.reset();entryDialog.close();save();

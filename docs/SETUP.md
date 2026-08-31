@@ -157,3 +157,24 @@ Confirm the app was opened successfully over `http://` at least once and was add
 ### Data does not appear on a new device
 
 Import an Export backup into the new device, or open the app through the LAN address and wait for the `Synced` status.
+
+## 10. iPhone Shortcut (Add expense without opening website)
+
+You can create an iOS Shortcut that asks for an expense name, amount, and account, then posts directly to `http://<your-ip-or-tailscale>:8000/api/expenses`.
+
+### Shortcut actions:
+
+1. **Ask for Input**: "Expense item name?" (Text)
+2. **Ask for Input**: "Amount (₱)?" (Number)
+3. **Get Contents of URL**: `http://<your-ip-or-tailscale>:8000/api/accounts`
+4. **Choose from List**: Choose from *Contents of URL* (prompt: "Pay from account?")
+5. **Get Contents of URL**:
+   - URL: `http://<your-ip-or-tailscale>:8000/api/expenses`
+   - Method: **POST**
+   - Request Body: **JSON**
+   - Fields:
+     - `name`: Provided Input (Text from step 1)
+     - `amount`: Provided Input (Number from step 2)
+     - `account`: Chosen Item (from step 4)
+6. **Show Notification**: "Saved expense!"
+
